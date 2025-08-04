@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Cube Multiple Jumps & Scoreboard</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      height: 100vh;
+      overflow: hidden;
+      perspective: 1000px;
+      font-family: Arial, sans-serif;
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 32px;
+      color: white;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 2px solid white;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+
+    .cube {
+      width: 100px;
+      height: 100px;
+      transform-style: preserve-3d;
+      animation: rotate 4s linear infinite;
+    }
+
+    .face {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      opacity: 0.9;
+      border: 2px solid #fff;
+    }
+
+    .front  { background: red;     transform: translateZ(50px); }
+    .back   { background: blue;    transform: rotateY(180deg) translateZ(50px); }
+    .right  { background: lime;    transform: rotateY(90deg) translateZ(50px); }
+    .left   { background: yellow;  transform: rotateY(-90deg) translateZ(50px); }
+    .top    { background: cyan;    transform: rotateX(90deg) translateZ(50px); }
+    .bottom { background: magenta; transform: rotateX(-90deg) translateZ(50px); }
+
+    @keyframes rotate {
+      from { transform: rotateX(0deg) rotateY(0deg); }
+      to   { transform: rotateX(360deg) rotateY(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Score: 0</div>
+
+  <div class="scene" id="scene">
+    <div class="cube">
+      <div class="face front"></div>
+      <div class="face back"></div>
+      <div class="face right"></div>
+      <div class="face left"></div>
+      <div class="face top"></div>
+      <div class="face bottom"></div>
+    </div>
+  </div>
+
+  <script>
+    const scene = document.getElementById('scene');
+    const scoreboard = document.getElementById('scoreboard');
+
+    let following = true;
+    let onGround = false;
+
+    let score = 0;
+
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    let tx = x, ty = y;
+
+    let vx = 0;
+    let vy = 0;
+    const gravity = 0.5;
+    const bounce = -0.4;
+    const jumpSpeed = -20;
+
+    document.addEventListener('mousemove', (e) => {
+      tx = e.clientX - 50;
+      ty = e.clientY - 50;
+    });
+
+    // Left-click = drop
+    document.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        following = false;
+        onGround = false;
+        vx = (Math.random() - 0.5) * 4;
+        vy = 0;
+      } else if (e.button === 1) {
+        // Middle-click = jump ANYTIME
+        e.preventDefault();
+        if (!following) {
+          vy = jumpSpeed;
+          onGround = false;
+          score++;
+          updateScore();
+        }
+      }
+    });
+
+    // Right-click = pick up
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      following = true;
+      onGround = false;
+    });
+
+    function updateScore() {
+      scoreboard.textContent = `Score: ${score}`;
+    }
+
+    // Decrease score by 1 every second when cube is on ground
+    setInterval(() => {
+      if (onGround && score > 0) {
+        score--;
+        updateScore();
+      }
+    }, 1000);
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (following) {
+        // Smoothly move toward cursor
+        x += (tx - x) * 0.1;
+        y += (ty - y) * 0.1;
+      } else {
+        vy += gravity;
+        x += vx;
+        y += vy;
+
+        // Prevent cube from going above top of viewport
+        if (y < 0) {
+          y = 0;
+          vy = 0;
+        }
+
+        // Ground collision and bounce
+        if (y > window.innerHeight - 100) {
+          y = window.innerHeight - 100;
+          vy *= bounce;
+
+          // Detect landing
+          if (!onGround) {
+            onGround = true;
+            if (score > 0) {
+              score--;
+              updateScore();
+            }
+          }
+
+          // Stop bouncing when small velocity
+          if (Math.abs(vy) < 1) {
+            vy = 0;
+            vx *= 0.95;
+            if (Math.abs(vx) < 0.1) vx = 0;
+          }
+        } else {
+          onGround = false; // Cube is in air
+        }
+
+        // Wall collisions
+        if (x < 0) {
+          x = 0;
+          vx *= -1;
+        }
+        if (x > window.innerWidth - 100) {
+          x = window.innerWidth - 100;
+          vx *= -1;
+        }
+      }
+
+      scene.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    animate();
+  </script>
+</body>
+</html>
