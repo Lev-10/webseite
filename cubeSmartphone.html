@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cube Game Mobile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      height: 100vh;
+      overflow: hidden;
+      perspective: 1000px;
+      touch-action: none;
+      font-family: Arial, sans-serif;
+    }
+
+    #scoreboard {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 2px solid white;
+      z-index: 10;
+      user-select: none;
+    }
+
+    .scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+
+    .cube {
+      width: 100px;
+      height: 100px;
+      transform-style: preserve-3d;
+      animation: rotate 4s linear infinite;
+    }
+
+    .face {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      opacity: 0.9;
+      border: 2px solid #fff;
+    }
+
+    .front  { background: red;     transform: translateZ(50px); }
+    .back   { background: blue;    transform: rotateY(180deg) translateZ(50px); }
+    .right  { background: lime;    transform: rotateY(90deg) translateZ(50px); }
+    .left   { background: yellow;  transform: rotateY(-90deg) translateZ(50px); }
+    .top    { background: cyan;    transform: rotateX(90deg) translateZ(50px); }
+    .bottom { background: magenta; transform: rotateX(-90deg) translateZ(50px); }
+
+    @keyframes rotate {
+      from { transform: rotateX(0deg) rotateY(0deg); }
+      to   { transform: rotateX(360deg) rotateY(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="scoreboard">Score: 0</div>
+  <div class="scene" id="scene">
+    <div class="cube">
+      <div class="face front"></div>
+      <div class="face back"></div>
+      <div class="face right"></div>
+      <div class="face left"></div>
+      <div class="face top"></div>
+      <div class="face bottom"></div>
+    </div>
+  </div>
+
+  <script>
+    const scene = document.getElementById('scene');
+    const scoreboard = document.getElementById('scoreboard');
+
+    let following = true;
+    let onGround = false;
+    let score = 0;
+
+    let x = window.innerWidth / 2;
+    let y = window.innerHeight / 2;
+    let tx = x, ty = y;
+
+    let vx = 0, vy = 0;
+    const gravity = 0.5;
+    const bounce = -0.4;
+    const jumpSpeed = -20;
+
+    // Update Score UI
+    function updateScore() {
+      scoreboard.textContent = `Score: ${score}`;
+    }
+
+    // Ground timer: reduce score by 1/sec
+    setInterval(() => {
+      if (onGround && score > 0) {
+        score--;
+        updateScore();
+      }
+    }, 1000);
+
+    // Handle touch movement
+    document.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      tx = touch.clientX - 50;
+      ty = touch.clientY - 50;
+    }, { passive: false });
+
+    // Tap to toggle drop/pick
+    let lastTap = 0;
+    document.addEventListener('touchstart', (e) => {
+      const now = new Date().getTime();
+      const delta = now - lastTap;
+
+      if (delta < 300) {
+        // Double tap: jump
+        if (!following) {
+          vy = jumpSpeed;
+          onGround = false;
+          score++;
+          updateScore();
+        }
+      } else {
+        // Single tap: toggle follow/drop
+        if (following) {
+          following = false;
+          vx = (Math.random() - 0.5) * 4;
+          vy = 0;
+        } else {
+          following = true;
+          onGround = false;
+        }
+      }
+
+      lastTap = now;
+    });
+
+    // Main animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (following) {
+        x += (tx - x) * 0.1;
+        y += (ty - y) * 0.1;
+      } else {
+        vy += gravity;
+        x += vx;
+        y += vy;
+
+        // Stop cube at top
+        if (y < 0) {
+          y = 0;
+          vy = 0;
+        }
+
+        // Ground bounce
+        if (y > window.innerHeight - 100) {
+          y = window.innerHeight - 100;
+          vy *= bounce;
+
+          if (!onGround) {
+            onGround = true;
+            if (score > 0) {
+              score--;
+              updateScore();
+            }
+          }
+
+          if (Math.abs(vy) < 1) {
+            vy = 0;
+            vx *= 0.95;
+            if (Math.abs(vx) < 0.1) vx = 0;
+          }
+        } else {
+          onGround = false;
+        }
+
+        // Left/right bounds
+        if (x < 0) {
+          x = 0;
+          vx *= -1;
+        }
+        if (x > window.innerWidth - 100) {
+          x = window.innerWidth - 100;
+          vx *= -1;
+        }
+      }
+
+      scene.style.transform = `translate(${x}px, ${y}px)`;
+    }
+
+    animate();
+  </script>
+</body>
+</html>
